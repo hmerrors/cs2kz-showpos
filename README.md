@@ -1,5 +1,7 @@
 # CS2KZ ShowPos — 独立 Windows 插件
 
+**本项目由ChatGPT 6 Astra辅助完成**
+
 linux尚未支持
 
 1.0.0-rc1，原生 C++，Metamod Plugin API **18**。独立安装，不替换 CS2KZ DLL、模式、样式或核心资源。
