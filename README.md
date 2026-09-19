@@ -1,17 +1,19 @@
 # CS2KZ ShowPos — 独立 Windows 插件
 
+linux尚未支持
+
 1.0.0-rc1，原生 C++，Metamod Plugin API **18**。独立安装，不替换 CS2KZ DLL、模式、样式或核心资源。
 
-作者：**hm_error and bell_meow**。
+作者：**hm_error and 狸喵w**。
 
 ## 运行条件
 
 - Windows x64 CS2 服务器；本次验证游戏版本 1.41.8.1 / ServerVersion 2000908。
-- Metamod:Source 2.0 **API 18**；验证版本 2.0.0-dev+1469。仅写“Metamod 2.0”不够，早期 API 17 构建不兼容。
+- Metamod:Source 2.0 **API 18**；验证版本 2.0.0-dev+1469。早期 API 17 构建不兼容。
 - CS2KZ **0.0.173**，导出 `ICS2KZ001`。
 - MultiAddonManager **v1.6-0-ge85a483**，导出 `MultiAddonManager003`；CS2KZ 原有 HUD 资源须正常挂载。
 
-没有 CounterStrikeSharp、RayTrace、SourceMod 或新增 SQL 数据库依赖。编译用 HL2SDK，不需要将 SDK 安装到服务器。Linux 尚未移植/构建。
+无新增 SQL 数据库依赖。编译用 HL2SDK，不需要将 SDK 安装到服务器。Linux 尚未移植/构建。
 
 ## 安装与启动
 
