@@ -1,0 +1,19 @@
+# Uses Metamod's own SDK manifests and the HL2SDK AMBuild libraries.
+import os
+mms = os.path.abspath(builder.options.mms_path)
+sdkpath = os.path.abspath(builder.options.sdk_path)
+helpers = builder.Eval(os.path.join(mms, 'hl2sdk-manifests', 'SdkHelpers.ambuild'), {'Project': 'metamod'})
+cxx = builder.DetectCxx(target_arch='x86_64')
+if cxx.target.platform != 'windows':
+  raise Exception('This release verifies Windows x64 only; Linux support is deferred.')
+cxx.defines += ['WIN32','_WINDOWS','META_IS_SOURCE2','SE_CS2=25','SOURCE_ENGINE=25','_CRT_SECURE_NO_WARNINGS','_CRT_NONSTDC_NO_DEPRECATE','_HAS_EXCEPTIONS=0','NDEBUG']
+cxx.cflags += ['/MT','/utf-8','/W3','/O2','/Zi','/wd4244','/wd4267','/wd4146','/wd4018']
+cxx.cxxflags += ['/std:c++17','/TP']
+cxx.linkflags += ['/DEBUG','/OPT:REF','/OPT:ICF','/ignore:4099','/ignore:4098','kernel32.lib']
+cxx.cxxincludes += [os.path.join(builder.sourcePath,'src'),os.path.join(builder.sourcePath,'include'),os.path.join(mms,'core'),os.path.join(mms,'third_party','khook','include')]
+helper = helpers
+helper.find_sdk_path = lambda *args: sdkpath
+helper.findSdks(builder,[cxx],['cs2'])
+sdk = helper.sdks['cs2']
+target = helper.sdk_targets[0]
+builder.Build('AMBuilder', {'cxx':cxx,'sdk':sdk,'target':target,'helpers':helpers})

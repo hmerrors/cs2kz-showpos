@@ -1,0 +1,53 @@
+// Signatures/offsets from CS2KZ v0.0.173 (AGPL-3.0).
+"Games"
+{
+ "csgo"
+ {
+  "Signatures"
+  {
+			"ProcessMovement"
+			{
+				"library"	"server"
+				"windows"	"40 57 41 57 48 81 EC B8 00 00 00"
+				"linux"		"55 48 89 E5 41 57 41 56 41 55 49 89 F5 41 54 53 48 89 FB 48 83 EC ?? 48 8B 7F"
+			}
+			"CreateEntityByName"
+			{
+				"library"		"server"
+				"windows"		"48 83 EC 48 C6 44 24 30 00"
+				"linux"			"48 8D 05 ?? ?? ?? ?? 55 48 89 FA"
+			}
+			"DispatchSpawn"
+			{
+				"library"		"server"
+				"windows"		"48 89 5C 24 ?? 57 48 83 EC ?? 48 8B DA 48 8B F9 48 85 C9 0F 84 ?? ?? ?? ?? 48 85 D2"
+				"linux"			"48 85 FF 74 ?? 55 48 89 E5 41 55 41 54 49 89 FC"
+			}
+			"RemoveEntity"
+			{
+				"library"		"server"
+				"windows"		"48 85 C9 74 ?? 48 8B D1 48 8B 0D ?? ?? ?? ??"
+				"linux"			"48 89 FE 48 85 FF 74 ?? 48 8D 05 ?? ?? ?? ?? 48"
+			}
+  }
+  "Offsets"
+  {
+			"QuietPlayerSlot"
+			{
+				"windows"		"576"
+				"linux"			"576"
+			}
+			"GameEntitySystem"
+			{
+				"windows"		"88"
+				"linux"			"80"
+			}
+			"Teleport"
+			{
+				"windows"		"163"
+				"linux"			"162"
+			}
+   "HudStateNetworkChanged" { "windows" "1" "linux" "1" }
+  }
+ }
+}

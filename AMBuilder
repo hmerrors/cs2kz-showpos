@@ -1,0 +1,26 @@
+import os
+def base(binary):
+  helpers.configureCxx(builder,binary,sdk)
+  binary.sources += [os.path.join(sdk['path'],'public','tier0','memoverride.cpp')]
+  return binary
+proto = builder.tools.Protoc(protoc=target.protoc,sources=[os.path.join(sdk['path'],p) for p in ['common/valveextensions.proto','common/networkbasetypes.proto','common/network_connection.proto','common/engine_gcmessages.proto','gcsdk/steammessages.proto','gcsdk/gcsdk_gcmessages.proto','game/shared/cstrike15/cstrike15_gcmessages.proto','game/shared/cstrike15/cstrike15_usermessages.proto']])
+proto.protoc.includes += [os.path.join(sdk['path'],'gcsdk')]
+binary = base(cxx.Library('showpos'))
+binary.custom = [proto]
+binary.sources += [os.path.join(sdk['path'],p) for p in ['tier1/convar.cpp','entity2/entityidentity.cpp','entity2/entitysystem.cpp','entity2/entitykeyvalues.cpp','tier1/keyvalues3.cpp']]
+binary.sources += ['src/plugin.cpp','src/engine.cpp','src/hud.cpp','src/prefs.cpp','src/format.cpp','src/hook.cpp']
+binary.compiler.cxxincludes += [builder.buildPath]
+builder.Add(binary)
+if builder.options.tests:
+  test=base(cxx.Program('showpos-tests'))
+  test.sources += ['tests/format_test.cpp','src/format.cpp']
+  builder.Add(test)
+  prefs=base(cxx.Program('showpos-prefs-tests'))
+  prefs.compiler.cxxincludes += [os.path.join(builder.buildPath,'showpos','windows-x86_64')]
+  prefs.sources += ['tests/prefs_test.cpp','src/prefs.cpp']
+  builder.Add(prefs)
+  probe=base(cxx.Library('showpos-native-probe'))
+  probe.custom = [proto]
+  probe.compiler.cxxincludes += [os.path.join(builder.buildPath,'showpos','windows-x86_64')]
+  probe.sources += ['tests/native_probe.cpp']+[os.path.join(sdk['path'],p) for p in ['tier1/convar.cpp','entity2/entityidentity.cpp','entity2/entitysystem.cpp']]
+  builder.Add(probe)

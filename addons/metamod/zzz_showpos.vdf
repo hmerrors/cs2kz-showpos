@@ -1,0 +1,5 @@
+"Metamod Plugin"
+{
+ "alias" "showpos"
+ "file" "addons/showpos/bin/win64/showpos"
+}
