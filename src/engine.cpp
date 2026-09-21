@@ -1,6 +1,10 @@
 #include "engine.h"
 #include "KeyValues.h"
+#ifdef _WIN32
 #include <Windows.h>
+#else
+#include "module_linux.h"
+#endif
 #include <vector>
 #include <fstream>
 #include <filesystem>
@@ -60,7 +64,7 @@ void *Field::Append(void *p) const
 
 static Field FindField(const char *name, const char *member, bool collection = false)
 {
-	auto scope = engine::schemas->FindTypeScopeForModule("server.dll");
+	auto scope = engine::schemas->FindTypeScopeForModule(SHOWPOS_SERVER_MODULE);
 	auto cls = scope ? scope->FindDeclaredClass(name).Get() : nullptr;
 	if (!cls)
 	{
@@ -136,7 +140,7 @@ bool engine::SchemaReady()
 	return ok;
 }
 
-// Resolve the signature in the exact loaded DLL's on-disk PE image. KHook can already have
+// Resolve the signature in the exact loaded module's on-disk image. KHook can already have
 // replaced its in-memory prologue. Verify the entry through KHook's original trampoline.
 // No patching, guessed function addresses, or private CS2KZ object layouts are used.
 void *engine::Resolve(const char *signature, char *error, size_t maxlen)
@@ -146,6 +150,7 @@ void *engine::Resolve(const char *signature, char *error, size_t maxlen)
 		V_snprintf(error, maxlen, "Missing signature in ShowPos gamedata");
 		return nullptr;
 	}
+#ifdef _WIN32
 	auto modulePath = std::filesystem::u8path(gameDir) / "bin/win64/server.dll";
 	HMODULE module = GetModuleHandleW(modulePath.c_str());
 	wchar_t filename[32768];
@@ -224,6 +229,29 @@ void *engine::Resolve(const char *signature, char *error, size_t maxlen)
 		}
 	}
 	return result;
+#else
+	std::string diagnostic;
+	auto lookup = [](void *start, size_t length, const char *pattern) { return KHook::LookupSignature(start, length, pattern); };
+	void *result = linux_module::Resolve(std::filesystem::u8path(gameDir) / "bin/linuxsteamrt64/libserver.so", signature, lookup, diagnostic);
+	if (!result)
+	{
+		V_snprintf(error, maxlen, "%s", diagnostic.c_str());
+		return nullptr;
+	}
+	// SafetyHook's 5-byte near jump relocates only these first 6 instruction bytes.
+	// A longer comparison would read its generated return jump, not original code.
+	constexpr const char *prologue = "55 48 89 E5 41 57";
+	if (!strncmp(signature, prologue, strlen(prologue)))
+	{
+		void *original = KHook::FindOriginal(result);
+		if (!original || KHook::LookupSignature(original, 6, prologue) != original)
+		{
+			V_snprintf(error, maxlen, "ProcessMovement disk/memory mismatch");
+			return nullptr;
+		}
+	}
+	return result;
+#endif
 }
 
 bool engine::Open(ISmmAPI *ismm, char *error, size_t maxlen)
@@ -251,7 +279,7 @@ bool engine::Open(ISmmAPI *ismm, char *error, size_t maxlen)
 	auto offset = [&](const char *name)
 	{
 		auto k = offsets ? offsets->FindKey(name) : nullptr;
-		return k ? k->GetInt("windows", -1) : -1;
+		return k ? k->GetInt(SHOWPOS_PLATFORM, -1) : -1;
 	};
 	entitySystemOffset = offset("GameEntitySystem");
 	transmitSlot = offset("QuietPlayerSlot");
@@ -260,7 +288,7 @@ bool engine::Open(ISmmAPI *ismm, char *error, size_t maxlen)
 	auto address = [&](const char *name)
 	{
 		auto k = signatures ? signatures->FindKey(name) : nullptr;
-		return k ? Resolve(k->GetString("windows", ""), error, maxlen) : nullptr;
+		return k ? Resolve(k->GetString(SHOWPOS_PLATFORM, ""), error, maxlen) : nullptr;
 	};
 	movementAddress = address("ProcessMovement");
 	createEntity = reinterpret_cast<decltype(createEntity)>(address("CreateEntityByName"));

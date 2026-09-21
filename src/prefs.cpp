@@ -1,6 +1,11 @@
 #include "plugin.h"
 #include "KeyValues.h"
+#ifdef _WIN32
 #include <Windows.h>
+#else
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 #include <filesystem>
 #include <charconv>
 #include <fstream>
@@ -28,6 +33,32 @@ void prefs::Normalize(ShowPosPrefs &p)
 static std::filesystem::path Path(uint64 steam)
 {
 	return std::filesystem::u8path(engine::gameDir) / "addons/showpos/data" / (std::to_string(steam) + ".txt");
+}
+
+static bool CommitFile(const std::filesystem::path &tmp, const std::filesystem::path &path)
+{
+#ifdef _WIN32
+	return MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+	int fd = open(tmp.c_str(), O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+	{
+		return false;
+	}
+	bool ok = fsync(fd) == 0;
+	ok = close(fd) == 0 && ok;
+	if (!ok || rename(tmp.c_str(), path.c_str()) != 0)
+	{
+		return false;
+	}
+	fd = open(path.parent_path().c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (fd < 0)
+	{
+		return false;
+	}
+	ok = fsync(fd) == 0;
+	return close(fd) == 0 && ok;
+#endif
 }
 
 void prefs::Load(Player &p, uint64 steam)
@@ -127,7 +158,7 @@ bool prefs::Save(Player &p)
 	file.flush();
 	bool ok = bool(file);
 	file.close();
-	if (!ok || !MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	if (!ok || !file || !CommitFile(tmp, path))
 	{
 		return false;
 	}

@@ -480,10 +480,10 @@ void ShowPosPlugin::Status()
 		menus += p.menu.IsValid();
 		fresh += p.valid;
 	}
-	Msg("[ShowPos] 1.0.0-rc1 / API 18 / Windows x64\n[ShowPos] CS2KZ=%s MAM=%s schema=%s assets=%s paused=%s\n[ShowPos] Pre-movement samples=%llu, "
+	Msg("[ShowPos] 1.0.0-rc2 / API 18 / %s\n[ShowPos] CS2KZ=%s MAM=%s schema=%s assets=%s paused=%s\n[ShowPos] Pre-movement samples=%llu, "
 		"changed HUD text updates=%llu\n",
-		kz ? "ready" : "missing", mam ? "ready" : "missing", schemaOK ? "ready" : "missing", Assets() ? "ready" : "missing", paused ? "yes" : "no",
-		samples, renders);
+		SHOWPOS_PLATFORM_LABEL, kz ? "ready" : "missing", mam ? "ready" : "missing", schemaOK ? "ready" : "missing", Assets() ? "ready" : "missing",
+		paused ? "yes" : "no", samples, renders);
 	if (dependencyReloadRequired)
 	{
 		Msg("[ShowPos] Reload required: CS2KZ was unloaded.\n");

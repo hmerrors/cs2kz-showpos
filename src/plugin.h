@@ -58,7 +58,7 @@ public:
 
 	const char *GetVersion() override
 	{
-		return "1.0.0-rc1";
+		return "1.0.0-rc2";
 	}
 
 	const char *GetDate() override

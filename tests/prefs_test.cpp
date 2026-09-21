@@ -3,7 +3,11 @@
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>
+#ifdef _WIN32
 #include <Windows.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace engine
 {
@@ -24,7 +28,12 @@ static void Check(bool condition, const char *message)
 
 int main()
 {
-	auto root = std::filesystem::temp_directory_path() / ("showpos-prefs-test-" + std::to_string(GetCurrentProcessId()));
+#ifdef _WIN32
+	auto pid = GetCurrentProcessId();
+#else
+	auto pid = getpid();
+#endif
+	auto root = std::filesystem::temp_directory_path() / ("showpos-prefs-test-" + std::to_string(pid));
 	Check(!std::filesystem::exists(root), "isolated test directory");
 	engine::gameDir = root.u8string();
 	const uint64 steam = 76561198000000001;
@@ -42,6 +51,18 @@ int main()
 	Player loaded;
 	prefs::Load(loaded, steam);
 	Check(loaded.prefs.mode == ShowPosMode::Detailed && loaded.prefs.x == 6 && loaded.prefs.y == -20, "round trip");
+	p.dirty = true;
+	p.prefs.mode = ShowPosMode::Simple;
+	Check(prefs::Save(p) && !p.dirty, "replace existing preference file");
+	Player replaced;
+	prefs::Load(replaced, steam);
+	Check(replaced.prefs.mode == ShowPosMode::Simple, "replacement contains new settings");
+	std::filesystem::remove(path);
+	std::filesystem::create_directory(path);
+	p.dirty = true;
+	Check(!prefs::Save(p) && p.dirty && std::filesystem::is_directory(path), "failed commit retains dirty state and destination");
+	std::filesystem::remove(path);
+	Check(prefs::Save(p) && !p.dirty, "retry after failed commit");
 	auto write = [&](const char *data) { std::ofstream(path, std::ios::trunc) << data; };
 	write("version 1\nmode 999\norigin -1\nangles 999\nvelocity -1\nstamina 2\nduck -1\nx 9223372036854775807\ny -9223372036854775808\nsize "
 		  "999999999999999999999999999999\n");

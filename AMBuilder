@@ -9,18 +9,29 @@ binary = base(cxx.Library('showpos'))
 binary.custom = [proto]
 binary.sources += [os.path.join(sdk['path'],p) for p in ['tier1/convar.cpp','entity2/entityidentity.cpp','entity2/entitysystem.cpp','entity2/entitykeyvalues.cpp','tier1/keyvalues3.cpp']]
 binary.sources += ['src/plugin.cpp','src/engine.cpp','src/hud.cpp','src/prefs.cpp','src/format.cpp','src/hook.cpp']
+if cxx.target.platform == 'linux':
+  binary.sources += ['src/module_linux.cpp']
 binary.compiler.cxxincludes += [builder.buildPath]
-builder.Add(binary)
+plugin_nodes = builder.Add(binary)
 if builder.options.tests:
   test=base(cxx.Program('showpos-tests'))
   test.sources += ['tests/format_test.cpp','src/format.cpp']
   builder.Add(test)
   prefs=base(cxx.Program('showpos-prefs-tests'))
-  prefs.compiler.cxxincludes += [os.path.join(builder.buildPath,'showpos','windows-x86_64')]
+  prefs.compiler.sourcedeps += [plugin_nodes.binary]
+  prefs.compiler.cxxincludes += [os.path.join(builder.buildPath,'showpos',cxx.target.platform+'-x86_64')]
   prefs.sources += ['tests/prefs_test.cpp','src/prefs.cpp']
   builder.Add(prefs)
   probe=base(cxx.Library('showpos-native-probe'))
   probe.custom = [proto]
-  probe.compiler.cxxincludes += [os.path.join(builder.buildPath,'showpos','windows-x86_64')]
+  probe.compiler.cxxincludes += [os.path.join(builder.buildPath,'showpos',cxx.target.platform+'-x86_64')]
   probe.sources += ['tests/native_probe.cpp']+[os.path.join(sdk['path'],p) for p in ['tier1/convar.cpp','entity2/entityidentity.cpp','entity2/entitysystem.cpp']]
   builder.Add(probe)
+  if cxx.target.platform == 'linux':
+    module_test = cxx.Program('showpos-module-tests')
+    module_test.sources += ['tests/module_test.cpp','src/module_linux.cpp']
+    builder.Add(module_test)
+    loader_test = cxx.Program('showpos-loader-tests')
+    helpers.configureCxx(builder,loader_test,sdk)
+    loader_test.sources += ['tests/loader_test.cpp']
+    builder.Add(loader_test)

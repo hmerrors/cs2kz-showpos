@@ -1,5 +1,9 @@
 #include "native_hook.h"
+#ifdef _WIN32
 #include <Windows.h>
+#else
+#include <dlfcn.h>
+#endif
 #include <cstdio>
 #include "entityidentity.h"
 #include "cstrike15_usermessages.pb.h"
@@ -9,7 +13,12 @@ static ISource2GameClients *testClients;
 
 CGameEntitySystem *GameEntitySystem()
 {
-	return testResource ? *reinterpret_cast<CGameEntitySystem **>(static_cast<char *>(testResource) + 88) : nullptr;
+#ifdef _WIN32
+	constexpr int offset = 88;
+#else
+	constexpr int offset = 80;
+#endif
+	return testResource ? *reinterpret_cast<CGameEntitySystem **>(static_cast<char *>(testResource) + offset) : nullptr;
 }
 
 static void TestClick(const CCommandContext &, const CCommand &args)
@@ -49,6 +58,7 @@ static void TestMenu(const CCommandContext &, const CCommand &)
 	}
 }
 
+#ifdef _WIN32
 static LONG CALLBACK TraceException(EXCEPTION_POINTERS *e)
 {
 	if (e->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION)
@@ -77,11 +87,18 @@ static LONG CALLBACK TraceException(EXCEPTION_POINTERS *e)
 	fclose(f);
 	return EXCEPTION_CONTINUE_SEARCH;
 }
+#endif
 
 class Probe
 {
 public:
-	__declspec(noinline) void Move(CMoveData *p)
+#ifdef _WIN32
+	__declspec(noinline)
+#else
+	__attribute__((noinline))
+#endif
+	void
+	Move(CMoveData *p)
 	{
 		p->m_vecVelocity.x += 10;
 	}
@@ -154,9 +171,18 @@ public:
 		META_CONVAR_REGISTER(FCVAR_NONE);
 		// Test-only DLL: KHook retains detour capsules until Metamod shuts down. Pin this
 		// probe's code so those capsules cannot target an unloaded test module at exit.
+#ifdef _WIN32
 		HMODULE module;
 		GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN, reinterpret_cast<LPCWSTR>(&SelfTest), &module);
 		AddVectoredExceptionHandler(1, TraceException);
+#else
+		Dl_info info {};
+		if (!dladdr(reinterpret_cast<void *>(&SelfTest), &info) || !dlopen(info.dli_fname, RTLD_NOW | RTLD_NODELETE))
+		{
+			V_snprintf(error, maxlen, "Cannot pin test-only hook target module");
+			return false;
+		}
+#endif
 		bool ok = SelfTest();
 		if (!ok)
 		{

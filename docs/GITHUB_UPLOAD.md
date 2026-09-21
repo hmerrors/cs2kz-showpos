@@ -1,6 +1,6 @@
 # 将 CS2KZ ShowPos 上传到 GitHub
 
-当前插件版本：1.0.0-rc1。`meta list` 作者显示：`hm_error and bell_meow`。
+当前插件版本：1.0.0-rc2。`meta list` 作者显示：`hm_error and bell_meow`。
 
 以下步骤由你在自己的 GitHub 账号中执行。本地准备好的文件不会自动创建或发布远程仓库。
 
@@ -24,7 +24,8 @@ src/
 include/
 gamedata/
 cfg/
-addons/metamod/zzz_showpos.vdf
+.github/workflows/linux.yml
+.gitattributes
 scripts/
 tests/
 docs/
@@ -32,7 +33,7 @@ docs/
 
 这些内容将放在 GitHub 仓库根目录。网页上传时选择文件夹内的所有内容，让 README.md 直接出现在仓库首页。
 
-源码仓库保存源码和文档；可安装的 Windows ZIP 放在 Releases。不要把实际 `game/csgo`、整个工作目录、旧版内置 ShowPos 包、玩家 data、服务器配置、数据库、密钥或日志一起上传。本交付的 GitHub 目录已经按此整理。
+源码仓库保存源码和文档；可安装的 Linux ZIP 放在 Releases。不要把实际 `game/csgo`、整个工作目录、旧版内置 ShowPos 包、玩家 data、服务器配置、数据库、密钥或日志一起上传。本交付的 GitHub 目录已经按此整理。
 
 ## 2. 创建 GitHub 仓库
 
@@ -51,7 +52,7 @@ docs/
 ## 3. 使用网页上传源码
 
 1. 空仓库页面点击 **uploading an existing file**；已有文件的仓库使用 **Add file → Upload files**。
-2. 打开本地 `GitHub/cs2kz-showpos`，把里面的文件和子目录拖到上传区域。确认包含 `.gitignore` 和 `.clang-format`。
+2. 打开本地 `GitHub/cs2kz-showpos`，把里面的文件和子目录拖到上传区域。确认包含 `.gitignore`、`.clang-format`、`.gitattributes` 和 `.github/workflows/linux.yml`。隐藏文件夹如被漏传，建议使用下面的 Git 命令上传。
 3. 检查上传列表，README.md 应处于根目录，`src/plugin.h` 应保持这个路径。
 4. 提交说明可写 `Initial standalone ShowPos release`。
 5. 新建的个人仓库可以提交到默认分支；完成页面的 **Commit changes** 提交操作。如果页面采用分支/PR 流程，则提交后创建并合并该 PR。
@@ -62,19 +63,19 @@ GitHub 网页一次最多上传 100 个文件，单个文件最多 25 MiB。准�
 ## 4. 发布供服主下载的安装包
 
 1. 在仓库首页进入 **Releases → Draft a new release**；尚无版本时可能显示 **Create a new release**。
-2. 新建标签 **v1.0.0-rc1**，Target 选择刚上传源码所在的 `main` 分支。
-3. 标题填写 **CS2KZ ShowPos 1.0.0-rc1 — Windows x64**。
+2. 新建标签 **v1.0.0-rc2**，Target 选择刚上传源码所在的 `main` 分支。
+3. 标题填写 **CS2KZ ShowPos 1.0.0-rc2 — Linux x86_64**。
 4. 将 `docs/RELEASE_NOTES.md` 的内容复制到版本说明。
 5. 上传以下附件：
-   - `CS2KZ-ShowPos-Standalone-Windows.zip`：服主使用的安装包。
-   - `CS2KZ-ShowPos-Standalone-source.zip`：与 DLL 对应的源码快照。
+   - `CS2KZ-ShowPos-Standalone-Linux.zip`：服主使用的安装包。
+   - `CS2KZ-ShowPos-Standalone-source.zip`：与 SO 对应的源码快照。
    - `SHA256SUMS.txt`：交付文件校验值。
-6. 当前 DLL 版本仍是 `1.0.0-rc1`，勾选 **Set as a pre-release**，再点击 **Publish release**。这是沿用现有版本号，不否定你已完成的功能验收。
-7. 发布完成后，用页面附件下载一次 Windows ZIP，确认其中有 `addons/showpos/bin/win64/showpos.dll`。
+6. 当前插件版本仍是 `1.0.0-rc2`，勾选 **Set as a pre-release**，再点击 **Publish release**。Linux 游戏内验收仍未完成，具体编译与测试范围见 LINUX.md。
+7. 发布完成后，用页面附件下载一次 Linux ZIP，确认其中有 `addons/showpos/bin/linuxsteamrt64/showpos.so`。
 
-GitHub 还会自动提供 `Source code (zip)` / `Source code (tar.gz)`；这些是标签对应的源码，不含已编译安装 DLL。让服主下载明确命名的 Windows 安装包。
+GitHub 还会自动提供 `Source code (zip)` / `Source code (tar.gz)`；这些是标签对应的源码，不含已编译安装 SO。让服主下载明确命名的 Linux 安装包。
 
-`verification-logs.zip` 是本地验证记录，通常无需公开上传；`SHA256SUMS.txt` 中有它的条目也不要求上传该附件。若发布正式 1.0.0，应先同步修改代码中的版本号和文档、重新编译并打包，再使用 v1.0.0 标签，不要仅把 rc1 的安装包改名。
+`verification-logs.zip` 是本地验证记录，通常无需公开上传；`SHA256SUMS.txt` 中有它的条目也不要求上传该附件。若发布正式 1.0.0，应先同步修改代码中的版本号和文档、重新编译并打包，再使用 v1.0.0 标签，不要仅把 rc2 的安装包改名。
 
 界面操作依据：[GitHub 管理 Release 说明](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)。
 
@@ -109,8 +110,20 @@ Set-Location cs2kz-showpos
 
 ## 6. 后续更新
 
-每次功能修复后：更新版本号和 CHANGELOG，重新编译与验证，推送源码，再发布指向该源码提交的新标签和新 Windows 包。已有公开版本的附件保持与对应源码一致。
+每次功能修复后：更新版本号和 CHANGELOG，重新编译与验证，推送源码，再发布指向该源码提交的新标签和新 Linux 包。已有公开版本的附件保持与对应源码一致。
 
 `GetURL()` 当前为空。仓库创建后，可把实际仓库 URL 填入 `src/plugin.h` 的 `GetURL()`，重新编译；填入真实地址即可，无需猜测作者的 GitHub 用户名。
 
 如果需要两人共同维护，在仓库设置中邀请另一个人的真实 GitHub 账号为协作者；这与插件显示 `hm_error and bell_meow` 是两件独立的事。
+
+## 7. 通过 GitHub 自动编译 Linux
+
+源码根目录已经提供 `.github/workflows/linux.yml`，包含固定版本依赖、Ubuntu 22.04 编译、独立测试及打包。
+
+1. 将完整源码推送到仓库，确认 `.github/workflows/linux.yml` 存在。
+2. 打开仓库 **Actions → Linux build**，查看自动触发的构建；也可使用 **Run workflow** 手动运行。
+3. 等待所有步骤成功，在该次运行页面的 **Artifacts** 下载 `CS2KZ-ShowPos-Linux`。
+4. 解压 artifact 外层压缩包，里面的 `CS2KZ-ShowPos-Standalone-Linux.zip` 才是安装包，另有 `SHA256SUMS.txt`。
+5. 把这两个文件上传到与该次源码提交对应的 Release。工作流不会自动发布 Release。
+
+这使你无需自备 Linux 电脑即可在以后重新构建。当前工作流尚未在你的 GitHub 账号执行；以 Actions 的实际日志为准。编译成功不能替代 Linux CS2KZ 游戏内验收。

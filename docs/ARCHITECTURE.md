@@ -8,7 +8,7 @@ CS2KZ v0.0.173 公共接口提供玩家、SteamID 和观战信息，但不提供
 
 普通 `KHook::Member` 即使构造时传入 null post，也会注册 post 包装 thunk，不能据此保证所需先后顺序。不要用普通 wrapper 替换 `MovementHook`。核心卸载后锁定采样，重载 ShowPos 才恢复顺序；不声称支持任意第三方运动 detour 的动态插入顺序。
 
-签名扫描精确对应加载路径的 server.dll 磁盘 PE 可执行节，要求唯一命中，再转换成模块 RVA。移动入口前 11 字节通过 KHook 原始 trampoline 校验，避免扫描已被核心改写的入口或误取 Metamod 同名 server.dll。签名和非 schema 偏移来自指定 CS2KZ 版本的 gamedata；游戏更新后需要重新核对，不能保证任意后续版本兼容。
+Windows 扫描加载路径对应的 server.dll 磁盘 PE 可执行节；Linux 扫描 libserver.so 的 ELF64 可执行 PT_LOAD 段，并通过 dl_iterate_phdr 与设备号/inode 确认实际加载模块，按 load bias + p_vaddr 映射地址。两者均要求唯一命中，移动入口固定且不含相对寻址的前缀通过 KHook 原始 trampoline 校验，避免扫描已被核心改写的入口。Hook 栈空间使用 KHook 自身的计算方法，遵循各平台调用约定。签名和非 schema 偏移来自指定 CS2KZ 版本的 gamedata；游戏更新后需要重新核对，不能保证任意后续版本兼容。
 
 ## 菜单与 HUD
 
@@ -24,7 +24,7 @@ CS2KZ v0.0.173 公共接口提供玩家、SteamID 和观战信息，但不提供
 
 ConCommand 按 Load/Unload 显式分配和注销，避开 ICvar 销毁后的静态析构。暂停/卸载/换图/断线清除所属 HUD 并释放输入。核心卸载要求重载本插件。
 
-认证后的 SteamID64 为独立文件名，单文件上限 4096 字节，数值用 from_chars 完整校验和 int64 范围限制。写临时文件后 MoveFileEx 替换，延迟合并菜单操作；保存失败保留 dirty 状态重试。无需改动 CS2KZ preferences 或 SQLMM。
+认证后的 SteamID64 为独立文件名，单文件上限 4096 字节，数值用 from_chars 完整校验和 int64 范围限制。Windows 写临时文件后 MoveFileEx 替换；Linux 对临时文件 fsync 后同目录 rename，并 fsync 父目录。延迟合并菜单操作，保存失败保留 dirty 状态重试。无需改动 CS2KZ preferences 或 SQLMM。
 
 ## 文件对应
 
@@ -32,7 +32,7 @@ ConCommand 按 Load/Unload 显式分配和注销，避开 ICvar 销毁后的静�
 |---|---|
 | src/plugin.cpp | Metamod 生命周期、命令、采样、玩家/观战状态 |
 | src/native_hook.h、hook.cpp | 原生 API 18 挂钩与可见性过滤 |
-| src/engine.cpp | SDK 接口、schema、PE 签名扫描 |
+| src/engine.cpp、module_linux.cpp | SDK 接口、schema、平台 gamedata 与 PE/ELF 签名扫描 |
 | src/hud.cpp | 独立布局实体、菜单、文本差量更新 |
 | src/prefs.cpp | 独立 SteamID 文件持久化 |
 | src/format.cpp | 只读固定缓冲格式化 |

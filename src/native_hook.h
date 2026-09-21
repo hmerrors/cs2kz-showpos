@@ -17,7 +17,7 @@ public:
 		callback = cb;
 		id = KHook::SetupHook(address, this, reinterpret_cast<void *>(&Removed), KHook::ExtractMFP(&MovementHook::Pre),
 							  mixed ? KHook::ExtractMFP(&MovementHook::Post) : nullptr, KHook::ExtractMFP(&MovementHook::Return),
-							  KHook::ExtractMFP(&MovementHook::Original), 32, false);
+							  KHook::ExtractMFP(&MovementHook::Original), KHook::Hook<void>::_copy_stack_size<void *, CMoveData *>(), false);
 		return id != KHook::INVALID_HOOK;
 	}
 
