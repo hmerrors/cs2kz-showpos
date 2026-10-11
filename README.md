@@ -7,9 +7,13 @@
 ## 运行条件
 
 - 当前 Windows x64 / Linux x86_64 CS2 服务器。
-- Metamod:Source 2.0，Plugin API **18**。建议更新到包含 `eed24a6` 原生挂钩卸载修复的版本。
+- Metamod:Source **2.0.0-dev+1474 或更新开发构建**，Plugin API **18**，包含 `eed24a6` 原生挂钩卸载修复。插件会检查版本，旧构建会拒绝加载。
 - 当前 CS2KZ，导出 **ICS2KZ002**；使用与核心匹配的最新 UI / Workshop 资源。
 - MultiAddonManager，导出 **MultiAddonManager003**，正常挂载 CS2KZ 原有资源。
+
+Metamod 对应下载见 [官方开发构建](https://www.sourcemm.net/downloads.php?branch=master)。
+
+Linux 请使用官方 Metamod 文件，保留其符号表，不要额外 strip；缺少所需符号时 ShowPos 会拒绝加载。
 
 旧 `ICS2KZ001` 核心不受支持。插件会检查接口、schema 和签名，加载失败时保留错误信息。
 

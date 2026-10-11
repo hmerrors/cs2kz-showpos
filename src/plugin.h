@@ -117,7 +117,7 @@ namespace prefs
 
 namespace hooks
 {
-	bool Init();
+	bool Init(char *error, size_t maxlen);
 	void Cleanup();
 	void Pawn(CEntityInstance *p);
 } // namespace hooks

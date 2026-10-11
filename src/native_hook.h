@@ -21,12 +21,10 @@ public:
 		return id != KHook::INVALID_HOOK;
 	}
 
-	void Clear()
+	void Retire()
 	{
-		if (id != KHook::INVALID_HOOK)
-		{
-			KHook::RemoveHook(id, false);
-		}
+		// Metamod owns final removal and retains this DLL until it completes.
+		callback = nullptr;
 	}
 
 	static void Removed(KHook::HookID_t)
@@ -37,7 +35,10 @@ public:
 	void Pre(CMoveData *move)
 	{
 		auto ctx = KHook::GetContext<MovementHook>();
-		ctx->callback(this, move);
+		if (ctx->callback)
+		{
+			ctx->callback(this, move);
+		}
 		KHook::__internal__savereturnvalue(KHook::Return<void> {KHook::Action::Ignore}, false);
 	}
 

@@ -73,6 +73,17 @@ bool ShowPosPlugin::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen,
 	{
 		return false;
 	}
+	// Build 1474 started retaining native hooks until their active calls finish.
+	// Older API 18 builds cannot safely own the full set during DLL unload.
+	ConVarRefAbstract metamodVersion("metamod_version");
+	CUtlString version = metamodVersion.IsValidRef() ? metamodVersion.GetString() : CUtlString("");
+	const char *buildText = !strncmp(version.Get(), "2.0.0-dev+", 10) ? version.Get() + 10 : nullptr;
+	int build = 0;
+	if (!buildText || std::from_chars(buildText, buildText + strlen(buildText), build).ec != std::errc() || build < 1474)
+	{
+		V_snprintf(error, maxlen, "ShowPos requires Metamod:Source 2.0.0-dev+1474 or newer; installed: %s", version.Get());
+		return false;
+	}
 	schemaOK = true;
 	auto config = new KeyValues("ShowPos");
 	if (config->LoadFromFile(engine::files, "cfg/showpos.cfg", "GAME"))
@@ -83,11 +94,16 @@ bool ShowPosPlugin::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen,
 	showPosCommand = new ConCommand("kz_showpos", ShowPosCommand, "Open standalone ShowPos settings", FCVAR_CLIENT_CAN_EXECUTE);
 	statusCommand = new ConCommand("showpos_status", StatusCommand, "Show standalone ShowPos readiness");
 	META_CONVAR_REGISTER(FCVAR_NONE);
-	if (KHook::FindOriginal(engine::movementAddress) == engine::movementAddress || !hooks::Init())
+	if (KHook::FindOriginal(engine::movementAddress) == engine::movementAddress)
+	{
+		UnregisterCommands();
+		V_snprintf(error, maxlen, "CS2KZ movement detour is not ready");
+		return false;
+	}
+	if (!hooks::Init(error, maxlen))
 	{
 		hooks::Cleanup();
 		UnregisterCommands();
-		V_snprintf(error, maxlen, "CS2KZ movement detour is not ready");
 		return false;
 	}
 	initialized = true;

@@ -4,9 +4,10 @@
 #include <cstring>
 
 #include "native_hook.h"
+#include "khook_api.h"
 
-// Own engine implementation hooks and remove them synchronously before unloading.
-// Console dispatch is the exception below: unload can occur inside that callback.
+// Keep every registered ID until Metamod removes it after active calls finish.
+// Removing an ID here would leave it in Metamod's unload ownership set.
 template<class Class, class Ret, class... Args>
 class OwnedHook : public KHook::Member<Class, void, Args...>
 {
@@ -17,20 +18,29 @@ public:
 
 	void Stop()
 	{
-		decltype(this->_hook_ids) ids;
-		{
-			std::lock_guard guard(this->_hooks_stored);
-			ids = this->_hook_ids;
-		}
-		for (auto id : ids)
-		{
-			KHook::RemoveHook(id, false);
-		}
+		this->_pre_callback = this->_post_callback = nullptr;
+		this->_in_deletion = true;
+		std::lock_guard guard(this->_hooks_stored);
+		this->_hook_ids.clear();
+		this->_associated_hook_id = KHook::INVALID_HOOK;
+		targets.clear();
 	}
 
 	void Attach(Class *object, int index)
 	{
-		this->Configure(KHook::FindOriginalVirtual(*reinterpret_cast<void ***>(object), index));
+		void *address = KHook::FindOriginalVirtual(*reinterpret_cast<void ***>(object), index);
+		if (!address || this->_in_deletion || targets.count(address))
+		{
+			return;
+		}
+		// Different pawn classes can implement Teleport at different addresses.
+		// Retain each unique implementation instead of replacing its predecessor.
+		this->_associated_hook_id = KHook::INVALID_HOOK;
+		this->Configure(address);
+		if (this->_associated_hook_id != KHook::INVALID_HOOK)
+		{
+			targets.insert(address);
+		}
 	}
 
 	template<class M>
@@ -38,8 +48,12 @@ public:
 	{
 		Attach(object, KHook::GetVtableIndex(method));
 	}
+
+private:
+	std::unordered_set<void *> targets;
 };
 
+static ShowPosKHookAPI hookAPI;
 static MovementHook movement;
 
 static void Capture(void *p, CMoveData *mv)
@@ -60,7 +74,7 @@ static OwnedHook<ISource2Server, void, bool, bool, bool> frame(nullptr, Frame);
 
 static KHook::Return<void> Disconnect(ISource2GameClients *, CPlayerSlot slot, ENetworkDisconnectionReason, const char *, uint64, const char *)
 {
-	if (slot.Get() >= 0 && slot.Get() < 64)
+	if (plugin.initialized && slot.Get() >= 0 && slot.Get() < 64)
 	{
 		plugin.Reset(slot.Get());
 	}
@@ -87,6 +101,10 @@ static OwnedHook<ISource2GameClients, void, CPlayerSlot, int, uint32, const void
 
 static KHook::Return<void> Dispatch(ICvar *, ConCommandRef, const CCommandContext &ctx, const CCommand &args)
 {
+	if (!plugin.initialized)
+	{
+		return {KHook::Action::Ignore};
+	}
 	if (args.ArgC() >= 2 && (!V_stricmp(args[0], "say") || !V_stricmp(args[0], "say_team")))
 	{
 		CCommand text;
@@ -101,7 +119,7 @@ static KHook::Return<void> Dispatch(ICvar *, ConCommandRef, const CCommandContex
 }
 
 // The console command can be "meta unload showpos" while this very hook is active.
-// Let Metamod retain the DLL and remove this one hook after its active call returns.
+// Let Metamod retain the DLL and remove hooks after their active calls return.
 // Forget the wrapper's IDs: Metamod owns the final removal, not a DLL destructor.
 class CommandHook : public KHook::Virtual<ICvar, void, ConCommandRef, const CCommandContext &, const CCommand &>
 {
@@ -112,7 +130,8 @@ public:
 
 	void Stop()
 	{
-		ClearHooks();
+		_pre_callback = _post_callback = nullptr;
+		_in_deletion = true;
 		std::lock_guard guard(_hooks_stored);
 		_hook_ids_addr.clear();
 		_addr_hook_ids.clear();
@@ -180,10 +199,16 @@ void hooks::Pawn(CEntityInstance *p)
 	}
 }
 
-bool hooks::Init()
+bool hooks::Init(char *error, size_t maxlen)
 {
+	if (!hookAPI.Bind(KHook::__exported__khook, error, maxlen))
+	{
+		return false;
+	}
+	KHook::__exported__khook = &hookAPI;
 	if (!movement.Install(engine::movementAddress, Capture))
 	{
+		V_snprintf(error, maxlen, "Cannot install the CS2KZ movement observer");
 		return false;
 	}
 	frame.Attach(engine::game, &ISource2Server::GameFrame);
@@ -198,11 +223,12 @@ bool hooks::Init()
 
 void hooks::Cleanup()
 {
-	movement.Clear();
+	movement.Retire();
 	frame.Stop();
 	disconnect.Stop();
 	click.Stop();
 	dispatch.Stop();
 	transmit.Stop();
 	teleport.Stop();
+	hookAPI.Retire();
 }

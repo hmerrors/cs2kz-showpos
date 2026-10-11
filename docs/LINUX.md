@@ -1,6 +1,6 @@
 # Linux x86_64 安装
 
-版本 1.0.0-rc4。独立 Metamod API 18 插件，需要当前 CS2KZ（ICS2KZ002）、MultiAddonManager003 和已挂载的 CS2KZ UI 资源。
+版本 1.0.0-rc4。独立 Metamod API 18 插件，需要 Metamod:Source 2.0.0-dev+1474 或更新开发构建、当前 CS2KZ（ICS2KZ002）、MultiAddonManager003 和已挂载的 CS2KZ UI 资源。
 
 1. 下载 `CS2KZ-ShowPos-1.0.0-rc4-Linux-x86_64.zip`。
 2. 更新时先在服务器控制台执行 `meta unload showpos`，等待至少一秒，备份旧文件。

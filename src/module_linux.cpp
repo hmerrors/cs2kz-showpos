@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <dlfcn.h>
 
 namespace linux_module
 {
@@ -75,7 +76,8 @@ namespace linux_module
 		{
 		};
 
-		uintptr_t rva {}, address {};
+		uintptr_t rva {}, address {}, expectedBase {};
+		uint64_t length {1};
 		bool found {};
 	};
 
@@ -88,7 +90,8 @@ namespace linux_module
 		};
 
 		const char *path = info->dlpi_name && info->dlpi_name[0] ? info->dlpi_name : "/proc/self/exe";
-		if (stat(path, &candidate) || candidate.st_dev != module.file.st_dev || candidate.st_ino != module.file.st_ino)
+		if (stat(path, &candidate) || candidate.st_dev != module.file.st_dev || candidate.st_ino != module.file.st_ino
+			|| (module.expectedBase && module.expectedBase != info->dlpi_addr))
 		{
 			return 0;
 		}
@@ -96,7 +99,8 @@ namespace linux_module
 		{
 			const auto &segment = info->dlpi_phdr[i];
 			if (segment.p_type == PT_LOAD && (segment.p_flags & PF_X) && module.rva >= segment.p_vaddr
-				&& module.rva - segment.p_vaddr < segment.p_memsz && module.rva <= UINTPTR_MAX - info->dlpi_addr)
+				&& module.rva - segment.p_vaddr < segment.p_memsz && module.length <= segment.p_memsz - (module.rva - segment.p_vaddr)
+				&& module.rva <= UINTPTR_MAX - info->dlpi_addr)
 			{
 				module.address = info->dlpi_addr + module.rva;
 				module.found = true;
@@ -134,5 +138,115 @@ namespace linux_module
 			return nullptr;
 		}
 		return reinterpret_cast<void *>(module.address);
+	}
+
+	bool ResolveSymbols(const void *moduleAddress, const char *const *names, size_t count, void **addresses, std::string &error)
+	{
+		error = "Cannot read the loaded Metamod ELF image";
+		Dl_info info {};
+		if (!moduleAddress || !names || !count || !addresses || !dladdr(moduleAddress, &info) || !info.dli_fname || !info.dli_fbase)
+		{
+			return false;
+		}
+		FILE *file = fopen(info.dli_fname, "rb");
+		if (!file)
+		{
+			return false;
+		}
+		LoadedModule module;
+		module.expectedBase = reinterpret_cast<uintptr_t>(info.dli_fbase);
+		if (fstat(fileno(file), &module.file) || module.file.st_size < off_t(sizeof(Elf64_Ehdr)) || module.file.st_size > 512 * 1024 * 1024)
+		{
+			fclose(file);
+			return false;
+		}
+		std::vector<char> disk(size_t(module.file.st_size));
+		bool read = fread(disk.data(), 1, disk.size(), file) == disk.size();
+		fclose(file);
+		if (!read)
+		{
+			return false;
+		}
+		Elf64_Ehdr header;
+		memcpy(&header, disk.data(), sizeof(header));
+		error = "Invalid Metamod ELF symbol table";
+		if (memcmp(header.e_ident, ELFMAG, SELFMAG) || header.e_ident[EI_CLASS] != ELFCLASS64 || header.e_ident[EI_DATA] != ELFDATA2LSB
+			|| header.e_ident[EI_VERSION] != EV_CURRENT || header.e_version != EV_CURRENT || header.e_machine != EM_X86_64 || header.e_type != ET_DYN
+			|| header.e_ehsize != sizeof(header) || header.e_shentsize != sizeof(Elf64_Shdr) || !header.e_shnum || header.e_shnum >= SHN_LORESERVE
+			|| !Range(header.e_shoff, uint64_t(header.e_shnum) * sizeof(Elf64_Shdr), disk.size()))
+		{
+			return false;
+		}
+		std::vector<Elf64_Shdr> sections(header.e_shnum);
+		memcpy(sections.data(), disk.data() + header.e_shoff, sections.size() * sizeof(Elf64_Shdr));
+		std::vector<uint64_t> offsets(count), lengths(count);
+		for (const auto &table : sections)
+		{
+			if (table.sh_type != SHT_SYMTAB && table.sh_type != SHT_DYNSYM)
+			{
+				continue;
+			}
+			if (table.sh_entsize != sizeof(Elf64_Sym) || table.sh_size % sizeof(Elf64_Sym) || table.sh_link >= sections.size()
+				|| !Range(table.sh_offset, table.sh_size, disk.size()))
+			{
+				return false;
+			}
+			const auto &strings = sections[table.sh_link];
+			if (strings.sh_type != SHT_STRTAB || !Range(strings.sh_offset, strings.sh_size, disk.size()))
+			{
+				return false;
+			}
+			for (uint64_t cursor = 0; cursor < table.sh_size; cursor += sizeof(Elf64_Sym))
+			{
+				Elf64_Sym symbol;
+				memcpy(&symbol, disk.data() + table.sh_offset + cursor, sizeof(symbol));
+				if (ELF64_ST_TYPE(symbol.st_info) != STT_FUNC || symbol.st_shndx == SHN_UNDEF || symbol.st_shndx >= sections.size()
+					|| symbol.st_name >= strings.sh_size || !symbol.st_size)
+				{
+					continue;
+				}
+				const char *name = disk.data() + strings.sh_offset + symbol.st_name;
+				if (!memchr(name, '\0', strings.sh_size - symbol.st_name))
+				{
+					return false;
+				}
+				for (size_t n = 0; n < count; ++n)
+				{
+					if (strcmp(name, names[n]))
+					{
+						continue;
+					}
+					const auto &code = sections[symbol.st_shndx];
+					if (!(code.sh_flags & SHF_EXECINSTR) || code.sh_type != SHT_PROGBITS || !Range(code.sh_offset, code.sh_size, disk.size())
+						|| symbol.st_value < code.sh_addr || symbol.st_value - code.sh_addr >= code.sh_size
+						|| symbol.st_size > code.sh_size - (symbol.st_value - code.sh_addr) || (lengths[n] && offsets[n] != symbol.st_value))
+					{
+						return false;
+					}
+					offsets[n] = symbol.st_value;
+					lengths[n] = symbol.st_size;
+				}
+			}
+		}
+		for (size_t n = 0; n < count; ++n)
+		{
+			if (!lengths[n])
+			{
+				error = std::string("Metamod is missing KHook function symbols; install the official unstripped build: ") + names[n];
+				return false;
+			}
+			module.rva = offsets[n];
+			module.length = lengths[n];
+			module.found = false;
+			dl_iterate_phdr(FindLoaded, &module);
+			if (!module.found)
+			{
+				error = "KHook function does not belong to the exact loaded Metamod executable segments";
+				return false;
+			}
+			addresses[n] = reinterpret_cast<void *>(module.address);
+		}
+		error.clear();
+		return true;
 	}
 } // namespace linux_module

@@ -20,7 +20,7 @@ Windows 扫描加载路径对应的 server.dll 磁盘 PE 可执行节；Linux �
 
 ## 生命周期与保存
 
-大部分挂钩注册在原生引擎函数并同步移除。控制台 dispatch 可能正包围 `meta unload showpos`，由 Metamod 跟踪并延迟移除；禁用目标后等待其调用完成才释放 DLL。不 detour 插件自己的可卸载函数。
+运行要求 Metamod 2.0.0-dev+1474 或更新开发构建，加载时检查 `metamod_version`。卸载先禁用回调，所有挂钩统一由 Metamod 跟踪并延迟移除，等待活动调用完成才释放 DLL。不 detour 插件自己的可卸载函数。
 
 ConCommand 按 Load/Unload 显式分配和注销，避开 ICvar 销毁后的静态析构。暂停/卸载/换图/断线清除所属 HUD 并释放输入。核心卸载要求重载本插件。
 
@@ -38,3 +38,5 @@ ConCommand 按 Load/Unload 显式分配和注销，避开 ICvar 销毁后的静�
 | src/format.cpp | 只读固定缓冲格式化 |
 
 当前构建使用 S2SDK。`include/eiface.h` 仅将 Metamod 仍使用的旧包含路径转发到 SDK 的真实 Source 2 引擎接口，不声明替代 ABI。HUD 使用最新资源的 `mhud_timer_pos` 全屏父容器和 `mhud_timer` 标签；服务器只更新自己的实体。已有 class/dialog 条目按数组索引通知，新增条目完整通知；普通文本加入 U+2060，避免意外本地化。
+
+Metamod 的每插件 IKHook 对象早于异步卸载结束销毁，本插件通过声明的公共 KHook 函数完成后续回调；注册仍使用 Metamod 的插件接口。Windows 使用导出符号，Linux 从实际加载的官方 SO 读取同名函数符号并验证 ELF 边界、映射及文件身份。Linux 请保留官方 Metamod 文件的符号表；若人为 strip 导致缺少符号，插件拒绝加载，并给出具体缺失函数。没有复制 Metamod 的内部对象布局。
