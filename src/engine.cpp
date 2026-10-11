@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "KeyValues.h"
+#include "engine2/igameresourceservice.h"
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -18,9 +19,8 @@ namespace engine
 	ISource2GameEntities *entities;
 	IFileSystem *files;
 	CSchemaSystem *schemas;
-	void *resource;
 	void *movementAddress;
-	int transmitSlot = -1, entitySystemOffset = -1, teleportIndex = -1, stateNetworkIndex = -1;
+	int teleportIndex = -1, stateNetworkIndex = -1;
 	std::string gameDir;
 	CEntityInstance *(*createEntity)(const char *, int);
 	void (*spawnEntity)(CEntityInstance *, CEntityKeyValues *);
@@ -29,15 +29,6 @@ namespace engine
 	Field panels, classes, variables, globalState, playerStates, hasClasses, dialogStrings, capture, stateSlot;
 	Field classPanel, className, classStatus, dialogPanel, dialogName, dialogValue, dialogSet;
 } // namespace engine
-
-CGameEntitySystem *GameEntitySystem()
-{
-	if (!engine::resource || engine::entitySystemOffset < 0)
-	{
-		return nullptr;
-	}
-	return *reinterpret_cast<CGameEntitySystem **>(static_cast<char *>(engine::resource) + engine::entitySystemOffset);
-}
 
 int Field::Count(void *p) const
 {
@@ -264,10 +255,10 @@ bool engine::Open(ISmmAPI *ismm, char *error, size_t maxlen)
 	GET_V_IFACE_CURRENT(GetEngineFactory, schemas, CSchemaSystem, SCHEMASYSTEM_INTERFACE_VERSION);
 	GET_V_IFACE_CURRENT(GetEngineFactory, g_pCVar, ICvar, CVAR_INTERFACE_VERSION);
 	GET_V_IFACE_CURRENT(GetFileSystemFactory, files, IFileSystem, FILESYSTEM_INTERFACE_VERSION);
-	resource = ismm->GetEngineFactory()(GAMERESOURCESERVICESERVER_INTERFACE_VERSION, nullptr);
+	GET_V_IFACE_CURRENT(GetEngineFactory, g_pGameResourceServiceServer, IGameResourceService, GAMERESOURCESERVICESERVER_INTERFACE_VERSION);
 	gameDir = std::string(Plat_GetGameDirectory()) + "/csgo";
 	auto kv = new KeyValues("Games");
-	if (!resource || !kv->LoadFromFile(files, "addons/showpos/gamedata/showpos.games.txt", "GAME"))
+	if (!kv->LoadFromFile(files, "addons/showpos/gamedata/showpos.games.txt", "GAME"))
 	{
 		delete kv;
 		V_snprintf(error, maxlen, "Cannot load ShowPos gamedata");
@@ -281,8 +272,6 @@ bool engine::Open(ISmmAPI *ismm, char *error, size_t maxlen)
 		auto k = offsets ? offsets->FindKey(name) : nullptr;
 		return k ? k->GetInt(SHOWPOS_PLATFORM, -1) : -1;
 	};
-	entitySystemOffset = offset("GameEntitySystem");
-	transmitSlot = offset("QuietPlayerSlot");
 	teleportIndex = offset("Teleport");
 	stateNetworkIndex = offset("HudStateNetworkChanged");
 	auto address = [&](const char *name)
@@ -295,7 +284,7 @@ bool engine::Open(ISmmAPI *ismm, char *error, size_t maxlen)
 	spawnEntity = reinterpret_cast<decltype(spawnEntity)>(address("DispatchSpawn"));
 	removeEntity = reinterpret_cast<decltype(removeEntity)>(address("RemoveEntity"));
 	delete kv;
-	if (!movementAddress || !createEntity || !spawnEntity || !removeEntity || entitySystemOffset < 0 || transmitSlot < 0 || teleportIndex < 0
+	if (!movementAddress || !createEntity || !spawnEntity || !removeEntity || teleportIndex < 0
 		|| stateNetworkIndex < 0)
 	{
 		return false;

@@ -1,4 +1,5 @@
-// Adapted from CS2KZ v0.0.173, AGPL-3.0. Declarations only; no KZPlayer internals.
+// Adapted from CS2KZ master df0abea (2026-10-11), AGPL-3.0.
+// Movement declarations only; no KZPlayer internals.
 #pragma once
 #include "common.h"
 #include "ehandle.h"
@@ -42,15 +43,15 @@ public:
 	CMoveDataBase(const CMoveDataBase &source)
 		// clang-format off
 		: m_bHasZeroFrametime {source.m_bHasZeroFrametime},
-		m_bIsLateCommand {source.m_bIsLateCommand}, 
+		m_bIsLateCommand {source.m_bIsLateCommand},
 		m_nPlayerHandle {source.m_nPlayerHandle},
 		m_vecAbsViewAngles {source.m_vecAbsViewAngles},
 		m_vecViewAngles {source.m_vecViewAngles},
 		m_vecLastMovementImpulses {source.m_vecLastMovementImpulses},
-		m_flForwardMove {source.m_flForwardMove}, 
-		m_flSideMove {source.m_flSideMove}, 
+		m_flForwardMove {source.m_flForwardMove},
+		m_flSideMove {source.m_flSideMove},
 		m_flUpMove {source.m_flUpMove},
-		m_vecVelocity {source.m_vecVelocity}, 
+		m_vecVelocity {source.m_vecVelocity},
 		m_vecAngles {source.m_vecAngles},
 		m_vecUnknown {source.m_vecUnknown},
 		m_bHasSubtickInputs {source.m_bHasSubtickInputs},

@@ -1,10 +1,10 @@
 # 独立实现与审计边界
 
-CS2KZ v0.0.173 公共接口提供玩家、SteamID 和观战信息，但不提供 pre-movement 回调、菜单/偏好注册或完整 DuckSpeed。实现不转换 KZPlayer 内部对象，不链接 CS2KZ 私有符号，也不修改核心；缺少的部分由本 DLL 通过 Metamod API 18、HL2SDK 接口和 Source 2 schema 完成。
+CS2KZ master `df0abea` 的 `ICS2KZ002` 公共接口提供玩家、SteamID 和观战信息，但不提供 pre-movement 回调、菜单/偏好注册或完整 DuckSpeed。实现不转换 KZPlayer 内部对象，不链接 CS2KZ 私有符号，也不修改核心；缺少的部分由本 DLL 通过 Metamod API 18、HL2SDK 接口和 Source 2 schema 完成。
 
 ## 采样
 
-`MovementHook` 用 Metamod 自带 KHook 注册真正的 pre-only 回调，原生 post 指针为 null。在 CS2KZ 的 mixed hook 之后注册，经实际 Metamod 探针验证，观察先于核心 pre 回调与原函数。采样 CMoveData 的 origin、viewAngles、velocity，并在同一次调用中读取 movement services 的 stamina、duckAmount、duckSpeed。回调返回 Ignore，不写移动数据。
+`MovementHook` 用 Metamod 自带 KHook 注册真正的 pre-only 回调，原生 post 指针为 null。在 CS2KZ 的 mixed hook 之后注册，按 KHook 回调顺序观察核心 pre 回调之前的数据。采样 CMoveData 的 origin、viewAngles、velocity，并在同一次调用中读取 movement services 的 stamina、duckAmount、duckSpeed。回调返回 Ignore，不写移动数据。
 
 普通 `KHook::Member` 即使构造时传入 null post，也会注册 post 包装 thunk，不能据此保证所需先后顺序。不要用普通 wrapper 替换 `MovementHook`。核心卸载后锁定采样，重载 ShowPos 才恢复顺序；不声称支持任意第三方运动 detour 的动态插入顺序。
 
@@ -36,6 +36,5 @@ ConCommand 按 Load/Unload 显式分配和注销，避开 ICvar 销毁后的静�
 | src/hud.cpp | 独立布局实体、菜单、文本差量更新 |
 | src/prefs.cpp | 独立 SteamID 文件持久化 |
 | src/format.cpp | 只读固定缓冲格式化 |
-| tests | 格式化、偏好及真实 Metamod 原生探针 |
 
-探针 DLL 仅供隔离测试，运行包不含它。探针临时挂钩自身测试函数，因此固定驻留进程，保证 KHook 留存的 detour 地址在退出前有效；生产 DLL 不执行该测试行为。
+当前构建使用 S2SDK。`include/eiface.h` 仅将 Metamod 仍使用的旧包含路径转发到 SDK 的真实 Source 2 引擎接口，不声明替代 ABI。HUD 使用最新资源的 `mhud_timer_pos` 全屏父容器和 `mhud_timer` 标签；服务器只更新自己的实体。已有 class/dialog 条目按数组索引通知，新增条目完整通知；普通文本加入 U+2060，避免意外本地化。

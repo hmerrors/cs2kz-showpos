@@ -37,9 +37,8 @@ namespace engine
 	extern ISource2GameEntities *entities;
 	extern IFileSystem *files;
 	extern CSchemaSystem *schemas;
-	extern void *resource;
 	extern void *movementAddress;
-	extern int transmitSlot, entitySystemOffset, teleportIndex, stateNetworkIndex;
+	extern int teleportIndex, stateNetworkIndex;
 	extern std::string gameDir;
 	extern CEntityInstance *(*createEntity)(const char *, int);
 	extern void (*spawnEntity)(CEntityInstance *, CEntityKeyValues *);

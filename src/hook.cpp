@@ -1,5 +1,5 @@
 #include "plugin.h"
-#include "checktransmitinfo.h"
+#include "engine2/isource2server.h"
 #include "cstrike15_usermessages.pb.h"
 #include <cstring>
 
@@ -142,7 +142,7 @@ static KHook::Return<void> Transmit(ISource2GameEntities *, CCheckTransmitInfo *
 		{
 			continue;
 		}
-		int recipient = *reinterpret_cast<int *>(reinterpret_cast<char *>(info) + engine::transmitSlot);
+		int recipient = info->m_nPlayerSlot.Get();
 		for (int owner = 0; owner < 64; owner++)
 		{
 			if (owner != recipient)

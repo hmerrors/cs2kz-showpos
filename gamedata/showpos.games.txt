@@ -1,4 +1,4 @@
-// Signatures/offsets from CS2KZ v0.0.173 (AGPL-3.0).
+// Signatures/offsets from CS2KZ master df0abea (2026-10-11, AGPL-3.0).
 "Games"
 {
  "csgo"
@@ -32,20 +32,10 @@
   }
   "Offsets"
   {
-			"QuietPlayerSlot"
-			{
-				"windows"		"576"
-				"linux"			"576"
-			}
-			"GameEntitySystem"
-			{
-				"windows"		"88"
-				"linux"			"80"
-			}
 			"Teleport"
 			{
-				"windows"		"163"
-				"linux"			"162"
+				"windows"		"165"
+				"linux"			"164"
 			}
    "HudStateNetworkChanged" { "windows" "1" "linux" "1" }
   }

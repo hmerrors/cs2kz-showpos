@@ -29,19 +29,25 @@ static ConCommand *showPosCommand, *statusCommand;
 
 static void UnregisterCommands()
 {
-	// The SDK's ConVar_Unregister only changes its registration flag. Destroying
-	// still-valid static ConCommand refs after ICvar shutdown accesses freed state.
+	// Metamod must see valid refs before the SDK clears its registration list.
+	// The SDK list holds pointers to these commands, so keep them alive until then.
 	for (auto command : {showPosCommand, statusCommand})
 	{
 		if (command)
 		{
 			g_SMAPI->UnregisterConCommand(g_PLAPI, command);
+		}
+	}
+	ConVar_Unregister();
+	for (auto command : {showPosCommand, statusCommand})
+	{
+		if (command)
+		{
 			command->InvalidateRef();
 			delete command;
 		}
 	}
 	showPosCommand = statusCommand = nullptr;
-	ConVar_Unregister();
 }
 
 bool ShowPosPlugin::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late)
@@ -199,7 +205,7 @@ bool ShowPosPlugin::QueryRunning(char *error, size_t maxlen)
 	{
 		return true;
 	}
-	V_snprintf(error, maxlen, "Requires CS2KZ ICS2KZ001, MultiAddonManager003, and supported game schema");
+	V_snprintf(error, maxlen, "Requires CS2KZ " CS2KZ_INTERFACE ", MultiAddonManager003, and supported game schema");
 	return false;
 }
 
@@ -480,10 +486,10 @@ void ShowPosPlugin::Status()
 		menus += p.menu.IsValid();
 		fresh += p.valid;
 	}
-	Msg("[ShowPos] 1.0.0-rc2 / API 18 / %s\n[ShowPos] CS2KZ=%s MAM=%s schema=%s assets=%s paused=%s\n[ShowPos] Pre-movement samples=%llu, "
+	Msg("[ShowPos] %s / API 18 / %s\n[ShowPos] CS2KZ=%s MAM=%s schema=%s assets=%s paused=%s\n[ShowPos] Pre-movement samples=%llu, "
 		"changed HUD text updates=%llu\n",
-		SHOWPOS_PLATFORM_LABEL, kz ? "ready" : "missing", mam ? "ready" : "missing", schemaOK ? "ready" : "missing", Assets() ? "ready" : "missing",
-		paused ? "yes" : "no", samples, renders);
+		GetVersion(), SHOWPOS_PLATFORM_LABEL, kz ? "ready" : "missing", mam ? "ready" : "missing", schemaOK ? "ready" : "missing",
+		Assets() ? "ready" : "missing", paused ? "yes" : "no", samples, renders);
 	if (dependencyReloadRequired)
 	{
 		Msg("[ShowPos] Reload required: CS2KZ was unloaded.\n");

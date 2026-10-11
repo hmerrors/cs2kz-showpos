@@ -1,0 +1,122 @@
+name: Build ShowPos
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SHOWPOS_VERSION: 1.0.0-rc4
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/metamod-source
+          ref: eed24a61352b32bf85a4780664f4feccb0b059db
+          path: deps/metamod-source
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/s2sdk
+          ref: 23c73ccf3ae5816d8dc77b4ec553f3a74179eb42
+          path: deps/hl2sdk
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/ambuild
+          ref: 01212cb57c96561f664b6dfb2ee10e66de6f81e4
+          path: deps/ambuild
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Install AMBuild
+        run: python -m pip install ./deps/ambuild
+      - name: Configure and build plugin
+        shell: pwsh
+        env:
+          CC: cl
+          CXX: cl
+        run: |
+          New-Item -ItemType Directory build-windows | Out-Null
+          Set-Location build-windows
+          python ../configure.py --mms-path ../deps/metamod-source --sdk-path ../deps/hl2sdk
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ambuild -j 4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package Windows release
+        run: python scripts/package.py --platform windows --version $env:SHOWPOS_VERSION --binary build-windows/showpos/windows-x86_64/showpos.dll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ShowPos-Windows-x64
+          path: dist/*
+          if-no-files-found: error
+
+  linux:
+    name: Linux x86_64 (Steam Runtime 3)
+    runs-on: ubuntu-22.04
+    env:
+      STEAMRT_SDK: registry.gitlab.steamos.cloud/steamrt/sniper/sdk@sha256:1c33c507bc75d012e77df5727f93b0d5b8c3f7c8d4142ba5f7a16882cc92e014
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/metamod-source
+          ref: eed24a61352b32bf85a4780664f4feccb0b059db
+          path: deps/metamod-source
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/s2sdk
+          ref: 23c73ccf3ae5816d8dc77b4ec553f3a74179eb42
+          path: deps/hl2sdk
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/ambuild
+          ref: 01212cb57c96561f664b6dfb2ee10e66de6f81e4
+          path: deps/ambuild
+          persist-credentials: false
+      - name: Build and package in Steam Runtime SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$STEAMRT_SDK"
+          docker run --rm --init \
+            -v "$GITHUB_WORKSPACE:/app" -w /app \
+            -e SHOWPOS_VERSION -e CC=clang -e CXX=clang++ -e AR=llvm-ar-11 \
+            "$STEAMRT_SDK" bash -euo pipefail -c '
+              (cd deps/ambuild && python3 setup.py install)
+              chmod +x deps/hl2sdk/devtools/bin/linux/protoc
+              mkdir build-linux
+              cd build-linux
+              python3 ../configure.py --mms-path ../deps/metamod-source --sdk-path ../deps/hl2sdk
+              ambuild -j 4
+              cd ..
+              python3 scripts/package.py --platform linux --version "$SHOWPOS_VERSION" --binary build-linux/showpos/linux-x86_64/showpos.so
+              readelf -h -d --version-info build-linux/showpos/linux-x86_64/showpos.so > dist/Linux-binary.txt
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ShowPos-Linux-x86_64
+          path: dist/*
+          if-no-files-found: error

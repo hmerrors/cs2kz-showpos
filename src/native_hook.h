@@ -3,7 +3,7 @@
 #include "movedata.h"
 
 // A true pre-only callback (null native post thunk), registered AFTER CS2KZ's
-// mixed movement hook. Native API 18 integration tests verify this ordering.
+// mixed movement hook, so the snapshot precedes CS2KZ's movement adjustments.
 // All runtime detour targets belong to the engine, never an unloadable plugin.
 class MovementHook
 {

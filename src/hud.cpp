@@ -6,14 +6,16 @@
 // is created and owned by ShowPos; never adopt or write a CS2KZ-owned layout entity.
 static constexpr const char *HudPath = "panorama/layout/custom_game/cs2kz/mhud.vxml_c";
 static constexpr const char *MenuPath = "panorama/layout/custom_game/cs2kz/menu.xml";
+static constexpr int MaxInternedStrings = 1024;
 
-static void Changed(CEntityInstance *ent, void *state)
+static void Changed(void *state, const Field *field = nullptr, int index = -1)
 {
 	if (!state)
 	{
 		return;
 	}
-	NetworkStateChangedData data(true);
+	const NetworkStateChangedData data =
+		field && field->offset >= 0 ? NetworkStateChangedData(uint32(field->offset), index) : NetworkStateChangedData(true);
 	using Fn = void (*)(void *, const NetworkStateChangedData *);
 	reinterpret_cast<Fn>((*reinterpret_cast<void ***>(state))[engine::stateNetworkIndex])(state, &data);
 }
@@ -28,6 +30,10 @@ static int Intern(CEntityInstance *ent, const Field &field, const char *s)
 		{
 			return i;
 		}
+	}
+	if (count >= MaxInternedStrings)
+	{
+		return -1;
 	}
 	auto p = static_cast<CUtlString *>(field.Append(ent));
 	if (!p)
@@ -53,12 +59,14 @@ static void SetClass(CEntityInstance *ent, const char *panel, const char *name, 
 	}
 	int count = engine::hasClasses.Count(state);
 	void *entry = nullptr;
+	int index = count;
 	for (int i = 0; i < count; i++)
 	{
 		void *p = engine::hasClasses.Element(state, i);
 		if (engine::classPanel.Read<uint16>(p) == pi && engine::className.Read<uint16>(p) == ci)
 		{
 			entry = p;
+			index = i;
 			break;
 		}
 	}
@@ -77,7 +85,7 @@ static void SetClass(CEntityInstance *ent, const char *panel, const char *name, 
 	*engine::classPanel.At<uint16>(entry) = uint16(pi);
 	*engine::className.At<uint16>(entry) = uint16(ci);
 	*engine::classStatus.At<uint32>(entry) = uint32(on);
-	Changed(ent, state);
+	Changed(state, index < count ? &engine::hasClasses : nullptr, index);
 }
 
 static void Var(CEntityInstance *ent, const char *panel, const char *name, const char *value)
@@ -94,16 +102,21 @@ static void Var(CEntityInstance *ent, const char *panel, const char *name, const
 	}
 	void *entry = nullptr;
 	int count = engine::dialogStrings.Count(state);
+	int index = count;
 	for (int i = 0; i < count; i++)
 	{
 		auto p = engine::dialogStrings.Element(state, i);
 		if (engine::dialogPanel.Read<uint16>(p) == pi && engine::dialogName.Read<uint16>(p) == vi)
 		{
 			entry = p;
+			index = i;
 			break;
 		}
 	}
-	if (entry && engine::dialogSet.Read<bool>(entry) && !strcmp(engine::dialogValue.At<CUtlString>(entry)->Get(), value))
+	// Match CS2KZ's dialog strings: keep plain ShowPos values out of Panorama localization.
+	CUtlString escaped("\xE2\x81\xA0");
+	escaped += value;
+	if (entry && engine::dialogSet.Read<bool>(entry) && !strcmp(engine::dialogValue.At<CUtlString>(entry)->Get(), escaped.Get()))
 	{
 		return;
 	}
@@ -117,9 +130,9 @@ static void Var(CEntityInstance *ent, const char *panel, const char *name, const
 	}
 	*engine::dialogPanel.At<uint16>(entry) = uint16(pi);
 	*engine::dialogName.At<uint16>(entry) = uint16(vi);
-	*engine::dialogValue.At<CUtlString>(entry) = value;
+	*engine::dialogValue.At<CUtlString>(entry) = escaped;
 	*engine::dialogSet.At<bool>(entry) = true;
-	Changed(ent, state);
+	Changed(state, index < count ? &engine::dialogStrings : nullptr, index);
 }
 
 static void CaptureInput(CEntityInstance *ent, int slot, bool on)
@@ -133,9 +146,13 @@ static void CaptureInput(CEntityInstance *ent, int slot, bool on)
 	{
 		return;
 	}
+	if (engine::stateSlot.Read<CPlayerSlot>(state, CPlayerSlot(-1)).Get() == slot && engine::capture.Read<bool>(state) == on)
+	{
+		return;
+	}
 	*engine::stateSlot.At<CPlayerSlot>(state) = CPlayerSlot(slot);
 	*engine::capture.At<bool>(state) = on;
-	Changed(ent, state);
+	Changed(state);
 }
 
 static CEntityInstance *Create(int slot, bool menu)
@@ -269,7 +286,7 @@ void hud::RenderMenu(int slot)
 		char id[40], var[20], number[40];
 		V_snprintf(id, sizeof(id), "item%d", i);
 		SetClass(ent, id, "hidden", false);
-		SetClass(ent, id, "type-choice", true);
+		SetClass(ent, id, "has-sub", true);
 		V_snprintf(id, sizeof(id), "item_lbl%d", i);
 		V_snprintf(var, sizeof(var), "il%d", i);
 		Var(ent, id, var, zh ? labelsZH[i] : labelsEN[i]);

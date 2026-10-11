@@ -13,7 +13,9 @@ inline constexpr const char *SHOWPOS_SERVER_MODULE = "libserver.so";
 #endif
 #include <ISmmPlugin.h>
 #include <cstdint>
-#include "eiface.h"
+#include "engine2/ivengineserver2.h"
+#include "engine2/isource2server.h"
+#include "icvar.h"
 #include "entity2/entitysystem.h"
 #include "entity2/entityinstance.h"
 #include "tier1/strtools.h"

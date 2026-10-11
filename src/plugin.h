@@ -48,7 +48,7 @@ public:
 
 	const char *GetURL() override
 	{
-		return "";
+		return "https://github.com/hmerrors/cs2kz-showpos";
 	}
 
 	const char *GetLicense() override
@@ -58,7 +58,7 @@ public:
 
 	const char *GetVersion() override
 	{
-		return "1.0.0-rc2";
+		return "1.0.0-rc4";
 	}
 
 	const char *GetDate() override

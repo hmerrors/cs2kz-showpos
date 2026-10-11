@@ -1,20 +1,18 @@
-# CS2KZ ShowPos 1.0.0-rc2 — Linux x86_64 适配
+# CS2KZ ShowPos 1.0.0-rc4 — 最新 CS2KZ UI 适配
 
-独立原生 C++ ShowPos 插件，作者：**hm_error and bell_meow**。
+独立原生 C++ Metamod 插件，适配 2026-10-11 CS2KZ master `df0abea` 的公共接口和 HUD / 菜单资源。
 
-在现有 CS2KZ 服务器独立安装，无需替换 CS2KZ 核心。
+- 公共接口更新到 `ICS2KZ002`，取消对旧接口的依赖。
+- 修正传送挂钩槽位：Windows 165 / Linux 164，传送后丢弃旧采样。
+- 适配最新 UI 的 class / dialog 网络更新；避免显示文本被 Panorama 本地化，并显示菜单切换提示。
+- 继续复用 CS2KZ 已有资源，在独立布局实体中显示坐标、角度、速度、体力和蹲伏数据。不替换核心 HUD，不需要额外客户端文件。
+- 构建使用当前 S2SDK 和含原生挂钩卸载修复的 Metamod；Linux 使用官方 Steam Runtime 3 SDK。
+- 保留点击菜单、2/6 位小数、位置 / 字号、观战和独立玩家设置保存。
 
-- 聊天 `!showpos` / `/showpos`，或控制台 `kz_showpos` 打开点击菜单。
-- 支持简洁 2 位 / 详细 6 位小数、位置、视角、速度、体力、蹲伏信息。
-- 支持位置和字号调整、观战目标显示、独立 SteamID 设置保存。
-- 只依赖 Metamod:Source 2.0 API 18、CS2KZ、MultiAddonManager。
+下载对应平台的运行 ZIP，把 `addons`、`cfg` 合并到服务器 `game/csgo`。更新前卸载 ShowPos，保留已有配置和 `addons/showpos/data`。确保 CS2KZ 的最新 UI 已通过 MultiAddonManager 正常挂载。
 
-本次新增 Linux x86_64 适配，使用 Linux ELF 模块定位、平台 gamedata 与偏好文件原子保存。构建和独立测试记录见 docs/LINUX.md。Linux 游戏内功能、真实 Hook 顺序及生命周期仍待实服验收，作为候选版本发布。
+玩家输入 `!showpos` 或 `kz_showpos`，点击第一行开启；默认关闭。服务器使用 `showpos_status` 检查版本和依赖状态。
 
-Linux 安装请下载 **CS2KZ-ShowPos-Standalone-Linux.zip**，将其中 addons / cfg 合并至 game/csgo，按 docs/LINUX.md 加载。GitHub 自动生成的 Source code 压缩包用于编译，不包含可直接安装的 SO。
+本版包含 Windows / Linux 编译和打包验证，没有新增或运行单元测试。当前二进制仍需真实游戏内验收，按候选版本发布。历史验收不作为本版实服验证。
 
-历史 Windows rc1 验证组合：CS2 1.41.8.1，Metamod 2.0.0-dev+1469，CS2KZ 0.0.173，MultiAddonManager v1.6-0-ge85a483。维护者已于 2026-09-19 确认 Windows 功能测试全部通过；此次 Linux 适配未替换现有 Windows 服务器文件。
-
-已知情况：隔离测试中，原有依赖组合在退出阶段存在可复现异常；不加载 ShowPos 的对照也能复现。详情见仓库 `docs/TESTING.md`。
-
-功能概念来自 zer0.k 的 CS:GO ShowPos；第三方接口和声明保留原有署名，详见 THIRD_PARTY.md。源码按仓库现有 AGPL-3.0 LICENSE 分发。
+作者：hm_error 狸喵w。功能概念来自 zer0.k；源码 AGPL-3.0，来源见 THIRD_PARTY.md。
