@@ -2,6 +2,7 @@
 #include <elf.h>
 #include <link.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <cstdio>
 #include <cstring>
 #include <limits>
@@ -140,6 +141,31 @@ namespace linux_module
 		return reinterpret_cast<void *>(module.address);
 	}
 
+	static bool MappedFileMatches(const void *address, const struct stat &file)
+	{
+		FILE *maps = fopen("/proc/self/maps", "r");
+		if (!maps)
+		{
+			return false;
+		}
+		char line[4096];
+		bool match = false;
+		while (fgets(line, sizeof(line), maps))
+		{
+			unsigned long long begin, end, offset, inode;
+			unsigned deviceMajor, deviceMinor;
+			char permissions[5] {};
+			if (sscanf(line, "%llx-%llx %4s %llx %x:%x %llu", &begin, &end, permissions, &offset, &deviceMajor, &deviceMinor, &inode) == 7
+				&& reinterpret_cast<uintptr_t>(address) >= begin && reinterpret_cast<uintptr_t>(address) < end)
+			{
+				match = permissions[2] == 'x' && inode == file.st_ino && deviceMajor == major(file.st_dev) && deviceMinor == minor(file.st_dev);
+				break;
+			}
+		}
+		fclose(maps);
+		return match;
+	}
+
 	bool ResolveSymbols(const void *moduleAddress, const char *const *names, size_t count, void **addresses, std::string &error)
 	{
 		error = "Cannot read the loaded Metamod ELF image";
@@ -158,6 +184,12 @@ namespace linux_module
 		if (fstat(fileno(file), &module.file) || module.file.st_size < off_t(sizeof(Elf64_Ehdr)) || module.file.st_size > 512 * 1024 * 1024)
 		{
 			fclose(file);
+			return false;
+		}
+		if (!MappedFileMatches(moduleAddress, module.file))
+		{
+			fclose(file);
+			error = "Metamod ELF file differs from the mapped image; restart the server after updating Metamod";
 			return false;
 		}
 		std::vector<char> disk(size_t(module.file.st_size));
